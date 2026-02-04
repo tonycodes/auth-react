@@ -35,6 +35,8 @@ export interface AuthState {
   orgRole: string;
   isSuperAdmin: boolean;
   isPlatformAdmin: boolean;
+  accessToken: string | null;
+  getAccessToken: () => Promise<string | null>;
   login: () => void;
   logout: () => Promise<void>;
   switchOrganization: (orgId: string) => Promise<void>;

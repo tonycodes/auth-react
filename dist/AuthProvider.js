@@ -162,6 +162,21 @@ export function AuthProvider({ config, children }) {
     }, [baseApiUrl, updateFromToken]);
     const isAdmin = orgRole === 'admin' || orgRole === 'owner';
     const isOwner = orgRole === 'owner';
+    const getAccessToken = useCallback(async () => {
+        if (accessToken) {
+            // Check if token expires within 60 seconds
+            try {
+                const payload = decodeJWT(accessToken);
+                if (payload.exp * 1000 - Date.now() > 60000) {
+                    return accessToken;
+                }
+            }
+            catch {
+                // Fall through to refresh
+            }
+        }
+        return refreshToken();
+    }, [accessToken, refreshToken]);
     const value = {
         isAuthenticated: !!accessToken && !!organization,
         isLoading,
@@ -173,6 +188,8 @@ export function AuthProvider({ config, children }) {
         orgRole,
         isSuperAdmin,
         isPlatformAdmin: isSuperAdmin,
+        accessToken,
+        getAccessToken,
         login,
         logout,
         switchOrganization,
