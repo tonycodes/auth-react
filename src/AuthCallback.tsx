@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface AuthCallbackProps {
   /** API URL to exchange code (defaults to current origin) */
@@ -18,8 +18,13 @@ interface AuthCallbackProps {
  */
 export function AuthCallback({ apiUrl, onSuccess, onError }: AuthCallbackProps) {
   const [error, setError] = useState<string | null>(null);
+  const exchangedRef = useRef(false);
 
   useEffect(() => {
+    // Guard against React 18 strict mode double-firing
+    if (exchangedRef.current) return;
+    exchangedRef.current = true;
+
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     const state = params.get('state');

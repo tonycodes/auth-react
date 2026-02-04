@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 /**
  * Component that handles the OAuth callback.
  * Mount at /auth/callback route.
@@ -9,7 +9,12 @@ import { useEffect, useState } from 'react';
  */
 export function AuthCallback({ apiUrl, onSuccess, onError }) {
     const [error, setError] = useState(null);
+    const exchangedRef = useRef(false);
     useEffect(() => {
+        // Guard against React 18 strict mode double-firing
+        if (exchangedRef.current)
+            return;
+        exchangedRef.current = true;
         const params = new URLSearchParams(window.location.search);
         const code = params.get('code');
         const state = params.get('state');

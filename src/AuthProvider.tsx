@@ -143,7 +143,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     };
   }, [refreshToken, fetchOrganizations]);
 
-  const login = useCallback(() => {
+  const login = useCallback((provider?: string) => {
     const redirectUri = `${appUrl}/auth/callback`;
     const state = btoa(JSON.stringify({ returnTo: window.location.pathname }));
     const params = new URLSearchParams({
@@ -151,6 +151,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
       redirect_uri: redirectUri,
       state,
     });
+    if (provider) params.set('provider', provider);
     window.location.href = `${authUrl}/authorize?${params}`;
   }, [authUrl, clientId, appUrl]);
 
@@ -196,6 +197,21 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
   const isAdmin = orgRole === 'admin' || orgRole === 'owner';
   const isOwner = orgRole === 'owner';
 
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
+    if (accessToken) {
+      // Check if token expires within 60 seconds
+      try {
+        const payload = decodeJWT(accessToken);
+        if (payload.exp * 1000 - Date.now() > 60_000) {
+          return accessToken;
+        }
+      } catch {
+        // Fall through to refresh
+      }
+    }
+    return refreshToken();
+  }, [accessToken, refreshToken]);
+
   const value: AuthState = {
     isAuthenticated: !!accessToken && !!organization,
     isLoading,
@@ -207,6 +223,8 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     orgRole,
     isSuperAdmin,
     isPlatformAdmin: isSuperAdmin,
+    accessToken,
+    getAccessToken,
     login,
     logout,
     switchOrganization,
