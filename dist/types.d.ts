@@ -38,7 +38,7 @@ export interface AuthState {
     isPlatformAdmin: boolean;
     accessToken: string | null;
     getAccessToken: () => Promise<string | null>;
-    login: () => void;
+    login: (provider?: string) => void;
     logout: () => Promise<void>;
     switchOrganization: (orgId: string) => Promise<void>;
     organizations: AuthOrganization[];

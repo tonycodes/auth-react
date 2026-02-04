@@ -114,7 +114,7 @@ export function AuthProvider({ config, children }) {
                 clearTimeout(refreshTimerRef.current);
         };
     }, [refreshToken, fetchOrganizations]);
-    const login = useCallback(() => {
+    const login = useCallback((provider) => {
         const redirectUri = `${appUrl}/auth/callback`;
         const state = btoa(JSON.stringify({ returnTo: window.location.pathname }));
         const params = new URLSearchParams({
@@ -122,6 +122,8 @@ export function AuthProvider({ config, children }) {
             redirect_uri: redirectUri,
             state,
         });
+        if (provider)
+            params.set('provider', provider);
         window.location.href = `${authUrl}/authorize?${params}`;
     }, [authUrl, clientId, appUrl]);
     const logout = useCallback(async () => {
