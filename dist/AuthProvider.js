@@ -6,6 +6,7 @@ function decodeJWT(token) {
     return JSON.parse(json);
 }
 export const AuthContext = createContext(null);
+export const AuthConfigContext = createContext(null);
 export function AuthProvider({ config, children }) {
     const { authUrl, clientId, appUrl, apiUrl } = config;
     const baseApiUrl = apiUrl || appUrl;
@@ -201,6 +202,6 @@ export function AuthProvider({ config, children }) {
         loginError: null,
         impersonating: false,
     };
-    return _jsx(AuthContext.Provider, { value: value, children: children });
+    return (_jsx(AuthConfigContext.Provider, { value: config, children: _jsx(AuthContext.Provider, { value: value, children: children }) }));
 }
 //# sourceMappingURL=AuthProvider.js.map

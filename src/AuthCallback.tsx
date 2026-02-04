@@ -32,7 +32,23 @@ export function AuthCallback({ apiUrl, onSuccess, onError }: AuthCallbackProps) 
 
     if (errorParam) {
       setError(errorParam);
-      onError?.(errorParam);
+      if (onError) {
+        onError(errorParam);
+      } else {
+        let redirectReturnTo = '/';
+        if (state) {
+          try {
+            const decoded = JSON.parse(atob(state));
+            redirectReturnTo = decoded.returnTo || '/';
+          } catch {
+            // Invalid state — default to /
+          }
+        }
+        const loginUrl = new URL('/login', window.location.origin);
+        loginUrl.searchParams.set('error', errorParam);
+        if (redirectReturnTo !== '/') loginUrl.searchParams.set('returnTo', redirectReturnTo);
+        window.location.href = loginUrl.toString();
+      }
       return;
     }
 

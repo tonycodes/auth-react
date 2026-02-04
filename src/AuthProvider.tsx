@@ -18,6 +18,7 @@ function decodeJWT(token: string): JWTPayload {
 }
 
 export const AuthContext = createContext<AuthState | null>(null);
+export const AuthConfigContext = createContext<AuthConfig | null>(null);
 
 interface AuthProviderProps {
   config: AuthConfig;
@@ -235,5 +236,9 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     impersonating: false,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthConfigContext.Provider value={config}>
+      <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    </AuthConfigContext.Provider>
+  );
 }

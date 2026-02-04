@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import type { AuthConfig, AuthState } from './types.js';
 export declare const AuthContext: import("react").Context<AuthState | null>;
+export declare const AuthConfigContext: import("react").Context<AuthConfig | null>;
 interface AuthProviderProps {
     config: AuthConfig;
     children: ReactNode;
