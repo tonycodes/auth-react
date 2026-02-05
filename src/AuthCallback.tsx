@@ -71,7 +71,7 @@ export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }: AuthCal
 
     async function exchange() {
       try {
-        const res = await fetch(`${baseUrl}/auth/callback?code=${encodeURIComponent(code!)}`, {
+        const res = await fetch(`${baseUrl}/api/auth/callback?code=${encodeURIComponent(code!)}`, {
           credentials: 'include',
         });
 
