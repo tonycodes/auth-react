@@ -1,13 +1,21 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { AuthConfigContext } from './AuthProvider.js';
 /**
  * Component that handles the OAuth callback.
  * Mount at /auth/callback route.
  *
  * Exchanges the authorization code for tokens via the backend proxy,
  * then redirects to the original page.
+ *
+ * The API URL is resolved in this order:
+ * 1. `apiUrl` prop (explicit override)
+ * 2. `config.apiUrl` from AuthProvider
+ * 3. `config.appUrl` from AuthProvider
+ * 4. Current window origin (fallback)
  */
-export function AuthCallback({ apiUrl, onSuccess, onError }) {
+export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }) {
+    const config = useContext(AuthConfigContext);
     const [error, setError] = useState(null);
     const exchangedRef = useRef(false);
     useEffect(() => {
@@ -48,7 +56,8 @@ export function AuthCallback({ apiUrl, onSuccess, onError }) {
             onError?.('Missing authorization code');
             return;
         }
-        const baseUrl = apiUrl || window.location.origin;
+        // Resolve API URL: prop > config.apiUrl > config.appUrl > current origin
+        const baseUrl = apiUrlProp || config?.apiUrl || config?.appUrl || window.location.origin;
         async function exchange() {
             try {
                 const res = await fetch(`${baseUrl}/auth/callback?code=${encodeURIComponent(code)}`, {
@@ -83,7 +92,7 @@ export function AuthCallback({ apiUrl, onSuccess, onError }) {
             }
         }
         exchange();
-    }, [apiUrl, onSuccess, onError]);
+    }, [apiUrlProp, config, onSuccess, onError]);
     if (error) {
         return (_jsxs("div", { style: { padding: '2rem', textAlign: 'center' }, children: [_jsx("h2", { children: "Authentication Failed" }), _jsx("p", { children: error }), _jsx("a", { href: "/", children: "Go Home" })] }));
     }

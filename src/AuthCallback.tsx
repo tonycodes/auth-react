@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { AuthConfigContext } from './AuthProvider.js';
 
 interface AuthCallbackProps {
-  /** API URL to exchange code (defaults to current origin) */
+  /** API URL to exchange code (overrides config.apiUrl, defaults to current origin) */
   apiUrl?: string;
   /** Where to redirect after successful auth */
   onSuccess?: (returnTo: string) => void;
@@ -15,8 +16,15 @@ interface AuthCallbackProps {
  *
  * Exchanges the authorization code for tokens via the backend proxy,
  * then redirects to the original page.
+ *
+ * The API URL is resolved in this order:
+ * 1. `apiUrl` prop (explicit override)
+ * 2. `config.apiUrl` from AuthProvider
+ * 3. `config.appUrl` from AuthProvider
+ * 4. Current window origin (fallback)
  */
-export function AuthCallback({ apiUrl, onSuccess, onError }: AuthCallbackProps) {
+export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }: AuthCallbackProps) {
+  const config = useContext(AuthConfigContext);
   const [error, setError] = useState<string | null>(null);
   const exchangedRef = useRef(false);
 
@@ -58,7 +66,8 @@ export function AuthCallback({ apiUrl, onSuccess, onError }: AuthCallbackProps) 
       return;
     }
 
-    const baseUrl = apiUrl || window.location.origin;
+    // Resolve API URL: prop > config.apiUrl > config.appUrl > current origin
+    const baseUrl = apiUrlProp || config?.apiUrl || config?.appUrl || window.location.origin;
 
     async function exchange() {
       try {
@@ -95,7 +104,7 @@ export function AuthCallback({ apiUrl, onSuccess, onError }: AuthCallbackProps) 
     }
 
     exchange();
-  }, [apiUrl, onSuccess, onError]);
+  }, [apiUrlProp, config, onSuccess, onError]);
 
   if (error) {
     return (

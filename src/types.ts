@@ -5,7 +5,12 @@ export interface AuthConfig {
   clientId: string;
   /** This app's base URL (for redirect_uri construction) */
   appUrl: string;
-  /** API base URL for this app (for proxied refresh/callback) */
+  /**
+   * API base URL for proxied auth endpoints (callback, refresh, logout).
+   * Required if your API runs on a different subdomain than your frontend
+   * (e.g., api.myapp.test vs myapp.test).
+   * Defaults to appUrl if not specified.
+   */
   apiUrl?: string;
 }
 
