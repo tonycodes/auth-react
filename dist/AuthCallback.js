@@ -3,10 +3,14 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { AuthConfigContext } from './AuthProvider.js';
 /**
  * Component that handles the OAuth callback.
- * Mount at /auth/callback route.
+ * Mount at /auth/callback route in your React router.
  *
- * Exchanges the authorization code for tokens via the backend proxy,
- * then redirects to the original page.
+ * When mounted, this component:
+ * 1. Extracts the authorization code from the URL
+ * 2. Calls /api/auth/callback on the backend to exchange the code for tokens
+ * 3. Redirects to the original page (from state)
+ *
+ * Your Express backend should mount callbackHandler() at /api/auth/callback.
  *
  * The API URL is resolved in this order:
  * 1. `apiUrl` prop (explicit override)
