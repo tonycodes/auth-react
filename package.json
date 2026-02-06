@@ -1,6 +1,6 @@
 {
   "name": "@tonycodes/auth-react",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "React SDK for Tony Auth service",
   "type": "module",
   "main": "dist/index.js",
