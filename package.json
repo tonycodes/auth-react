@@ -12,9 +12,32 @@
     },
     "./style.css": "./dist/style.css"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc && npx tailwindcss -i src/style.css -o dist/style.css --minify",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "auth",
+    "authentication",
+    "sdk"
+  ],
+  "author": "Tony <tony@tony.codes>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tonycodes/auth-react.git"
+  },
+  "homepage": "https://github.com/tonycodes/auth-react#readme",
+  "bugs": {
+    "url": "https://github.com/tonycodes/auth-react/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
