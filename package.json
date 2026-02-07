@@ -1,7 +1,11 @@
 {
   "name": "@tonycodes/auth-react",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "React SDK for Tony Auth service",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tonycodes/auth-react"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
