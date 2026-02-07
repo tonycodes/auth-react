@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuthConfig } from './useAuth.js';
-import { useProviders, ProviderInfo } from './useProviders.js';
+import { useProviders, type SSOProvider } from './useProviders.js';
 
 type Mode = 'signin' | 'signup';
 
@@ -34,40 +34,31 @@ const APPLE_ICON = (
 
 const BITBUCKET_ICON = (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-    <path d="M.778 1.213a.768.768 0 00-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 00.77-.646l3.27-20.03a.768.768 0 00-.768-.891zM14.52 15.53H9.522L8.17 8.466h7.561z" />
+    <path d="M.778 1.213a.768.768 0 0 0-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 0 0 .77-.646l3.27-20.03a.768.768 0 0 0-.768-.891L.778 1.213zM14.52 15.53H9.522L8.17 8.466h7.561l-1.211 7.064z" />
   </svg>
 );
 
 interface SignInFormProps {
-  /** List of provider IDs to show. If not provided, auto-fetches from auth service. */
-  providers?: string[];
-  /** Whether to auto-fetch available providers from the auth service. Default: true */
+  /** List of provider IDs to show (for manual control). Overrides autoFetch when provided. */
+  providers?: SSOProvider[];
+  /** Whether to automatically fetch providers from the auth service. Defaults to true. */
   autoFetch?: boolean;
-  /** Additional CSS class names */
   className?: string;
-  /** Mode to display the form in */
-  mode?: Mode;
 }
 
-export function SignInForm({
-  providers: providersProp,
-  autoFetch = true,
-  className,
-  mode: modeProp,
-}: SignInFormProps) {
+export function SignInForm({ providers: propProviders, autoFetch = true, className }: SignInFormProps) {
   const config = useAuthConfig();
   const { providers: fetchedProviders, isLoading: providersLoading } = useProviders();
-
-  const [activeTab, setActiveTab] = useState<Mode>(modeProp || 'signin');
+  const [activeTab, setActiveTab] = useState<Mode>('signin');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState('/');
 
-  // Determine which providers to show
-  const enabledProviderIds = providersProp
-    ? providersProp
+  // Use prop providers if explicitly provided, otherwise use fetched providers
+  const enabledProviders: SSOProvider[] = propProviders
+    ? propProviders
     : autoFetch
-      ? fetchedProviders.filter((p) => p.enabled).map((p) => p.id)
-      : ['github'];
+      ? fetchedProviders.map((p) => p.id)
+      : ['github']; // fallback default
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -84,10 +75,10 @@ export function SignInForm({
       }
     }
 
-    if (!modeProp && (tabParam === 'signin' || tabParam === 'signup')) {
+    if (tabParam === 'signin' || tabParam === 'signup') {
       setActiveTab(tabParam);
     }
-  }, [modeProp]);
+  }, []);
 
   function handleOAuth(provider: string) {
     const redirectUri = `${config.appUrl}/auth/callback`;
@@ -115,64 +106,16 @@ export function SignInForm({
     ].join(' ');
   }
 
-  function getProviderButton(providerId: string) {
-    const actionText = activeTab === 'signin' ? 'Sign in with' : 'Sign up with';
-
-    switch (providerId) {
-      case 'github':
-        return (
-          <button
-            key="github"
-            type="button"
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-zinc-900 text-white font-medium rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
-            onClick={() => handleOAuth('github')}
-          >
-            {GITHUB_ICON}
-            <span>{actionText} GitHub</span>
-          </button>
-        );
-      case 'google':
-        return (
-          <button
-            key="google"
-            type="button"
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white text-zinc-700 font-medium rounded-xl border border-zinc-300 hover:bg-zinc-50 transition-colors cursor-pointer"
-            onClick={() => handleOAuth('google')}
-          >
-            {GOOGLE_ICON}
-            <span>{actionText} Google</span>
-          </button>
-        );
-      case 'apple':
-        return (
-          <button
-            key="apple"
-            type="button"
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-black text-white font-medium rounded-xl hover:bg-zinc-900 transition-colors cursor-pointer"
-            onClick={() => handleOAuth('apple')}
-          >
-            {APPLE_ICON}
-            <span>{actionText} Apple</span>
-          </button>
-        );
-      case 'bitbucket':
-        return (
-          <button
-            key="bitbucket"
-            type="button"
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
-            onClick={() => handleOAuth('bitbucket')}
-          >
-            {BITBUCKET_ICON}
-            <span>{actionText} Bitbucket</span>
-          </button>
-        );
-      default:
-        return null;
-    }
-  }
-
-  const showLoading = autoFetch && providersLoading && !providersProp;
+  const buttonText = (provider: string) => {
+    const providerNames: Record<string, string> = {
+      github: 'GitHub',
+      google: 'Google',
+      apple: 'Apple',
+      bitbucket: 'Bitbucket',
+    };
+    const name = providerNames[provider] || provider;
+    return activeTab === 'signin' ? `Sign in with ${name}` : `Sign up with ${name}`;
+  };
 
   return (
     <div className={className || ''}>
@@ -193,12 +136,60 @@ export function SignInForm({
         </div>
       )}
 
-      {/* Provider buttons */}
-      {showLoading ? (
-        <div className="text-center py-4 text-zinc-500 text-sm">Loading providers...</div>
+      {/* Loading state */}
+      {autoFetch && !propProviders && providersLoading ? (
+        <div className="flex items-center justify-center py-4">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
+        </div>
       ) : (
         <div className="space-y-3">
-          {enabledProviderIds.map((providerId) => getProviderButton(providerId))}
+          {/* GitHub */}
+          {enabledProviders.includes('github') && (
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-zinc-900 text-white font-medium rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
+              onClick={() => handleOAuth('github')}
+            >
+              {GITHUB_ICON}
+              <span>{buttonText('github')}</span>
+            </button>
+          )}
+
+          {/* Google */}
+          {enabledProviders.includes('google') && (
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white text-zinc-900 font-medium rounded-xl border border-zinc-300 hover:bg-zinc-50 transition-colors cursor-pointer"
+              onClick={() => handleOAuth('google')}
+            >
+              {GOOGLE_ICON}
+              <span>{buttonText('google')}</span>
+            </button>
+          )}
+
+          {/* Apple */}
+          {enabledProviders.includes('apple') && (
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-black text-white font-medium rounded-xl hover:bg-zinc-900 transition-colors cursor-pointer"
+              onClick={() => handleOAuth('apple')}
+            >
+              {APPLE_ICON}
+              <span>{buttonText('apple')}</span>
+            </button>
+          )}
+
+          {/* Bitbucket */}
+          {enabledProviders.includes('bitbucket') && (
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
+              onClick={() => handleOAuth('bitbucket')}
+            >
+              {BITBUCKET_ICON}
+              <span>{buttonText('bitbucket')}</span>
+            </button>
+          )}
         </div>
       )}
 

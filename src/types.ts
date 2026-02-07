@@ -1,17 +1,25 @@
 export interface AuthConfig {
-  /** Auth service URL (e.g., https://auth.tony.codes or https://auth.test) */
-  authUrl: string;
   /** Client ID registered with auth service */
   clientId: string;
-  /** This app's base URL (for redirect_uri construction) */
-  appUrl: string;
+  /** Auth service URL. Defaults to https://auth.tony.codes */
+  authUrl?: string;
+  /** This app's base URL. Auto-discovered from server or defaults to window.location.origin */
+  appUrl?: string;
   /**
    * API base URL for proxied auth endpoints (callback, refresh, logout).
    * Required if your API runs on a different subdomain than your frontend
    * (e.g., api.myapp.test vs myapp.test).
-   * Defaults to appUrl if not specified.
+   * Auto-discovered from server or defaults to appUrl.
    */
   apiUrl?: string;
+}
+
+/** Resolved config with all URLs populated (after discovery) */
+export interface ResolvedAuthConfig {
+  clientId: string;
+  authUrl: string;
+  appUrl: string;
+  apiUrl: string;
 }
 
 export interface AuthUser {
