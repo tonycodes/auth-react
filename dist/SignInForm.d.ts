@@ -1,14 +1,16 @@
-type Mode = 'signin' | 'signup';
+import { type SSOProvider } from './useProviders.js';
 interface SignInFormProps {
-    /** List of provider IDs to show. If not provided, auto-fetches from auth service. */
-    providers?: string[];
-    /** Whether to auto-fetch available providers from the auth service. Default: true */
+    /** List of provider IDs to show (for manual control). Overrides autoFetch when provided. */
+    providers?: SSOProvider[];
+    /** Whether to automatically fetch providers from the auth service. Defaults to true. */
     autoFetch?: boolean;
-    /** Additional CSS class names */
+    /** Color theme. Defaults to 'auto' (follows prefers-color-scheme). */
+    theme?: 'light' | 'dark' | 'auto';
+    /** Optional inline styles applied to the root container. */
+    style?: React.CSSProperties;
+    /** Optional CSS class applied to the root container. */
     className?: string;
-    /** Mode to display the form in */
-    mode?: Mode;
 }
-export declare function SignInForm({ providers: providersProp, autoFetch, className, mode: modeProp, }: SignInFormProps): import("react/jsx-runtime").JSX.Element;
+export declare function SignInForm({ providers: propProviders, autoFetch, theme, style, className, }: SignInFormProps): import("react/jsx-runtime").JSX.Element;
 export {};
 //# sourceMappingURL=SignInForm.d.ts.map

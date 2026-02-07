@@ -1,1 +1,1 @@
-{"version":3,"file":"useAuth.d.ts","sourceRoot":"","sources":["../src/useAuth.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,UAAU,EAAE,SAAS,EAAE,MAAM,YAAY,CAAC;AAExD,wBAAgB,OAAO,IAAI,SAAS,CAMnC;AAED,wBAAgB,aAAa,IAAI,UAAU,CAM1C"}
+{"version":3,"file":"useAuth.d.ts","sourceRoot":"","sources":["../src/useAuth.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,kBAAkB,EAAE,SAAS,EAAE,MAAM,YAAY,CAAC;AAEhE,wBAAgB,OAAO,IAAI,SAAS,CAMnC;AAED,wBAAgB,aAAa,IAAI,kBAAkB,CAMlD"}
