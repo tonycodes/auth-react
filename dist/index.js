@@ -5,4 +5,5 @@ export { SignedIn, SignedOut, RedirectToSignIn } from './components.js';
 export { OrganizationSwitcher } from './OrganizationSwitcher.js';
 export { AuthCallback } from './AuthCallback.js';
 export { SignInForm } from './SignInForm.js';
+export { AuthConfigError } from './validateConfig.js';
 //# sourceMappingURL=index.js.map
