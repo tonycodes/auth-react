@@ -1,5 +1,8 @@
 import { createContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { AuthConfig, AuthUser, AuthOrganization, AuthState } from './types.js';
+import type { AuthConfig, ResolvedAuthConfig, AuthUser, AuthOrganization, AuthState } from './types.js';
+import { validateConfig } from './validateConfig.js';
+
+const DEFAULT_AUTH_URL = 'https://auth.tony.codes';
 
 interface JWTPayload {
   sub: string;
@@ -12,22 +15,83 @@ interface JWTPayload {
 }
 
 function decodeJWT(token: string): JWTPayload {
-  const base64 = token.split('.')[1];
-  const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
-  return JSON.parse(json);
+  try {
+    const base64 = token.split('.')[1];
+    if (!base64) throw new Error('Invalid token structure');
+    const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    throw new Error('Failed to decode access token — the token may be malformed');
+  }
 }
 
 export const AuthContext = createContext<AuthState | null>(null);
-export const AuthConfigContext = createContext<AuthConfig | null>(null);
+export const AuthConfigContext = createContext<ResolvedAuthConfig | null>(null);
 
 interface AuthProviderProps {
   config: AuthConfig;
   children: ReactNode;
 }
 
+/**
+ * Resolve config by discovering missing URLs from the auth service.
+ * 1. If appUrl provided explicitly → use it, skip discovery
+ * 2. Otherwise → fetch from /api/client-apps/:clientId/config
+ * 3. Fallback → use window.location.origin
+ */
+async function resolveConfig(config: AuthConfig): Promise<ResolvedAuthConfig> {
+  const authUrl = config.authUrl || DEFAULT_AUTH_URL;
+  let appUrl = config.appUrl;
+  let apiUrl = config.apiUrl;
+
+  // If appUrl is already provided, skip discovery
+  if (!appUrl) {
+    try {
+      const res = await fetch(`${authUrl}/api/client-apps/${config.clientId}/config`);
+      if (res.ok) {
+        const data = await res.json();
+        appUrl = data.appUrl || undefined;
+        if (!apiUrl) apiUrl = data.apiUrl || undefined;
+      }
+    } catch {
+      // Discovery failed — use fallback
+    }
+  }
+
+  // Fallback to window.location.origin
+  if (!appUrl && typeof window !== 'undefined') {
+    appUrl = window.location.origin;
+  }
+
+  if (!appUrl) {
+    appUrl = authUrl; // Last resort
+  }
+
+  return {
+    clientId: config.clientId,
+    authUrl,
+    appUrl,
+    apiUrl: apiUrl || appUrl,
+  };
+}
+
 export function AuthProvider({ config, children }: AuthProviderProps) {
-  const { authUrl, clientId, appUrl, apiUrl } = config;
-  const baseApiUrl = apiUrl || appUrl;
+  // Validate config on initialization (throws if invalid)
+  validateConfig(config);
+
+  const [resolved, setResolved] = useState<ResolvedAuthConfig | null>(() => {
+    // If all URLs are provided, resolve synchronously
+    const authUrl = config.authUrl || DEFAULT_AUTH_URL;
+    if (config.appUrl) {
+      return {
+        clientId: config.clientId,
+        authUrl,
+        appUrl: config.appUrl,
+        apiUrl: config.apiUrl || config.appUrl,
+      };
+    }
+    return null;
+  });
 
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -39,6 +103,16 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const refreshLockRef = useRef(false);
+
+  // Discover config if needed
+  useEffect(() => {
+    if (resolved) return; // Already resolved synchronously
+    let mounted = true;
+    resolveConfig(config).then((r) => {
+      if (mounted) setResolved(r);
+    });
+    return () => { mounted = false; };
+  }, [config, resolved]);
 
   const updateFromToken = useCallback((token: string) => {
     const payload = decodeJWT(token);
@@ -71,11 +145,12 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
   }, []);
 
   const refreshToken = useCallback(async (): Promise<string | null> => {
+    if (!resolved) return null;
     if (refreshLockRef.current) return null;
     refreshLockRef.current = true;
 
     try {
-      const res = await fetch(`${baseApiUrl}/auth/refresh`, {
+      const res = await fetch(`${resolved.apiUrl}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -105,12 +180,13 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     } finally {
       refreshLockRef.current = false;
     }
-  }, [baseApiUrl, updateFromToken]);
+  }, [resolved, updateFromToken]);
 
   // Fetch user organizations list
   const fetchOrganizations = useCallback(async (token: string) => {
+    if (!resolved) return;
     try {
-      const res = await fetch(`${authUrl}/api/organizations`, {
+      const res = await fetch(`${resolved.authUrl}/api/organizations`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -120,10 +196,11 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     } catch {
       // Silent failure — orgs list is supplementary
     }
-  }, [authUrl]);
+  }, [resolved]);
 
-  // Initial auth check — try to refresh on mount
+  // Initial auth check — try to refresh on mount (after config resolves)
   useEffect(() => {
+    if (!resolved) return;
     let mounted = true;
 
     async function init() {
@@ -142,24 +219,26 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
       mounted = false;
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
-  }, [refreshToken, fetchOrganizations]);
+  }, [resolved, refreshToken, fetchOrganizations]);
 
   const login = useCallback((provider?: string) => {
-    const redirectUri = `${appUrl}/auth/callback`;
+    if (!resolved) return;
+    const redirectUri = `${resolved.appUrl}/auth/callback`;
     const state = btoa(JSON.stringify({ returnTo: window.location.pathname }));
     const params = new URLSearchParams({
-      client_id: clientId,
+      client_id: resolved.clientId,
       redirect_uri: redirectUri,
       state,
     });
     if (provider) params.set('provider', provider);
-    window.location.href = `${authUrl}/authorize?${params}`;
-  }, [authUrl, clientId, appUrl]);
+    window.location.href = `${resolved.authUrl}/authorize?${params}`;
+  }, [resolved]);
 
   const logout = useCallback(async () => {
+    if (!resolved) return;
     setIsLoggingOut(true);
     try {
-      await fetch(`${baseApiUrl}/auth/logout`, {
+      await fetch(`${resolved.apiUrl}/auth/logout`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -172,12 +251,13 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     setOrganization(null);
     setOrganizations([]);
     setIsLoggingOut(false);
-  }, [baseApiUrl]);
+  }, [resolved]);
 
   const switchOrganization = useCallback(
     async (orgId: string) => {
+      if (!resolved) return;
       try {
-        const res = await fetch(`${baseApiUrl}/auth/switch-org`, {
+        const res = await fetch(`${resolved.apiUrl}/auth/switch-org`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -192,7 +272,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
         // Silent failure
       }
     },
-    [baseApiUrl, updateFromToken],
+    [resolved, updateFromToken],
   );
 
   const isAdmin = orgRole === 'admin' || orgRole === 'owner';
@@ -200,7 +280,6 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
 
   const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (accessToken) {
-      // Check if token expires within 60 seconds
       try {
         const payload = decodeJWT(accessToken);
         if (payload.exp * 1000 - Date.now() > 60_000) {
@@ -215,7 +294,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
 
   const value: AuthState = {
     isAuthenticated: !!accessToken && !!organization,
-    isLoading,
+    isLoading: isLoading || !resolved,
     user,
     organization,
     tenant: organization ? { id: organization.id, name: organization.name, slug: organization.slug } : null,
@@ -236,8 +315,16 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     impersonating: false,
   };
 
+  // Use resolved config for context, or a placeholder during discovery
+  const configValue: ResolvedAuthConfig = resolved || {
+    clientId: config.clientId,
+    authUrl: config.authUrl || DEFAULT_AUTH_URL,
+    appUrl: config.appUrl || '',
+    apiUrl: config.apiUrl || config.appUrl || '',
+  };
+
   return (
-    <AuthConfigContext.Provider value={config}>
+    <AuthConfigContext.Provider value={configValue}>
       <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
     </AuthConfigContext.Provider>
   );
