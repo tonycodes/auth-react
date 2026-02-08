@@ -35,22 +35,22 @@ interface AuthProviderProps {
 
 /**
  * Resolve config by discovering missing URLs from the auth service.
- * 1. If appUrl provided explicitly → use it, skip discovery
- * 2. Otherwise → fetch from /api/client-apps/:clientId/config
- * 3. Fallback → use window.location.origin
+ * 1. If appUrl or apiUrl is missing → fetch from /api/client-apps/:clientId/config
+ * 2. Fallback appUrl → use window.location.origin
+ * 3. Fallback apiUrl → use appUrl (with console warning if domains likely differ)
  */
 async function resolveConfig(config: AuthConfig): Promise<ResolvedAuthConfig> {
   const authUrl = config.authUrl || DEFAULT_AUTH_URL;
   let appUrl = config.appUrl;
   let apiUrl = config.apiUrl;
 
-  // If appUrl is already provided, skip discovery
-  if (!appUrl) {
+  // Discover missing URLs from auth service
+  if (!appUrl || !apiUrl) {
     try {
       const res = await fetch(`${authUrl}/api/client-apps/${config.clientId}/config`);
       if (res.ok) {
         const data = await res.json();
-        appUrl = data.appUrl || undefined;
+        if (!appUrl) appUrl = data.appUrl || undefined;
         if (!apiUrl) apiUrl = data.apiUrl || undefined;
       }
     } catch {
@@ -67,12 +67,27 @@ async function resolveConfig(config: AuthConfig): Promise<ResolvedAuthConfig> {
     appUrl = authUrl; // Last resort
   }
 
-  return {
+  const resolved = {
     clientId: config.clientId,
     authUrl,
     appUrl,
     apiUrl: apiUrl || appUrl,
   };
+
+  // Warn if apiUrl falls back to appUrl on a non-API hostname
+  if (typeof window !== 'undefined' && resolved.apiUrl === resolved.appUrl) {
+    const hostname = window.location.hostname;
+    if (!hostname.startsWith('api.') && !hostname.includes('localhost')) {
+      console.warn(
+        '[auth-react] apiUrl was not configured and could not be discovered. ' +
+          'Falling back to appUrl. If your API runs on a different subdomain ' +
+          '(e.g., api.' + hostname + '), set apiUrl in your AuthProvider config ' +
+          'or register apiUrl in your auth service client app settings.',
+      );
+    }
+  }
+
+  return resolved;
 }
 
 export function AuthProvider({ config, children }: AuthProviderProps) {
@@ -80,14 +95,14 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
   validateConfig(config);
 
   const [resolved, setResolved] = useState<ResolvedAuthConfig | null>(() => {
-    // If all URLs are provided, resolve synchronously
+    // If all URLs are provided, resolve synchronously (no discovery needed)
     const authUrl = config.authUrl || DEFAULT_AUTH_URL;
-    if (config.appUrl) {
+    if (config.appUrl && config.apiUrl) {
       return {
         clientId: config.clientId,
         authUrl,
         appUrl: config.appUrl,
-        apiUrl: config.apiUrl || config.appUrl,
+        apiUrl: config.apiUrl,
       };
     }
     return null;
