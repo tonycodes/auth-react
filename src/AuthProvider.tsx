@@ -11,6 +11,7 @@ interface JWTPayload {
   avatarUrl: string | null;
   org: { id: string; name: string; slug: string; role: string } | null;
   isSuperAdmin: boolean;
+  appRole: string | null;
   exp: number;
 }
 
@@ -114,6 +115,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
   const [organizations, setOrganizations] = useState<AuthOrganization[]>([]);
   const [orgRole, setOrgRole] = useState<string>('member');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [appRole, setAppRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -138,6 +140,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
       name: payload.name || 'User',
       role: payload.org?.role === 'owner' || payload.org?.role === 'admin' ? 'admin' : 'member',
       imageUrl: payload.avatarUrl,
+      appRole: payload.appRole || null,
     });
 
     if (payload.org) {
@@ -154,6 +157,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     }
 
     setIsSuperAdmin(payload.isSuperAdmin);
+    setAppRole(payload.appRole || null);
     setAccessToken(token);
 
     return payload;
@@ -175,6 +179,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
         setAccessToken(null);
         setUser(null);
         setOrganization(null);
+        setAppRole(null);
         return null;
       }
 
@@ -265,6 +270,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     setUser(null);
     setOrganization(null);
     setOrganizations([]);
+    setAppRole(null);
     setIsLoggingOut(false);
   }, [resolved]);
 
@@ -316,6 +322,7 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     isAdmin,
     isOwner,
     orgRole,
+    appRole,
     isSuperAdmin,
     isPlatformAdmin: isSuperAdmin,
     accessToken,
