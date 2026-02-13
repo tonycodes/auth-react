@@ -89,6 +89,7 @@ export function AuthProvider({ config, children }) {
     const [organizations, setOrganizations] = useState([]);
     const [orgRole, setOrgRole] = useState('member');
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [appRole, setAppRole] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const refreshTimerRef = useRef();
@@ -112,6 +113,7 @@ export function AuthProvider({ config, children }) {
             name: payload.name || 'User',
             role: payload.org?.role === 'owner' || payload.org?.role === 'admin' ? 'admin' : 'member',
             imageUrl: payload.avatarUrl,
+            appRole: payload.appRole || null,
         });
         if (payload.org) {
             setOrganization({
@@ -127,6 +129,7 @@ export function AuthProvider({ config, children }) {
             setOrgRole('member');
         }
         setIsSuperAdmin(payload.isSuperAdmin);
+        setAppRole(payload.appRole || null);
         setAccessToken(token);
         return payload;
     }, []);
@@ -146,6 +149,7 @@ export function AuthProvider({ config, children }) {
                 setAccessToken(null);
                 setUser(null);
                 setOrganization(null);
+                setAppRole(null);
                 return null;
             }
             const data = await res.json();
@@ -238,6 +242,7 @@ export function AuthProvider({ config, children }) {
         setUser(null);
         setOrganization(null);
         setOrganizations([]);
+        setAppRole(null);
         setIsLoggingOut(false);
     }, [resolved]);
     const switchOrganization = useCallback(async (orgId) => {
@@ -284,6 +289,7 @@ export function AuthProvider({ config, children }) {
         isAdmin,
         isOwner,
         orgRole,
+        appRole,
         isSuperAdmin,
         isPlatformAdmin: isSuperAdmin,
         accessToken,

@@ -28,6 +28,7 @@ export interface AuthUser {
   name: string;
   role: string;
   imageUrl: string | null;
+  appRole: string | null;
 }
 
 export interface AuthOrganization {
@@ -46,6 +47,7 @@ export interface AuthState {
   isAdmin: boolean;
   isOwner: boolean;
   orgRole: string;
+  appRole: string | null;
   isSuperAdmin: boolean;
   isPlatformAdmin: boolean;
   accessToken: string | null;
