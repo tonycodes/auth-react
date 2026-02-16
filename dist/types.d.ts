@@ -1,5 +1,5 @@
 export interface AuthConfig {
-    /** Auth service URL (e.g., https://auth.tony.codes or https://auth.test) */
+    /** Auth service URL (e.g., https://auth.tony.codes) */
     authUrl: string;
     /** Client ID registered with auth service */
     clientId: string;
