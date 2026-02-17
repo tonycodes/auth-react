@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
-import { AuthConfigContext } from './AuthProvider.js';
+import { AuthConfigContext, AuthContext } from './AuthProvider.js';
 
 interface AuthCallbackProps {
   /** API URL to exchange code (overrides config.apiUrl, defaults to current origin) */
@@ -29,6 +29,7 @@ interface AuthCallbackProps {
  */
 export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }: AuthCallbackProps) {
   const config = useContext(AuthConfigContext);
+  const auth = useContext(AuthContext);
   const [error, setError] = useState<string | null>(null);
   const exchangedRef = useRef(false);
 
@@ -84,6 +85,12 @@ export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }: AuthCal
           throw new Error(data.error || 'Authentication failed');
         }
 
+        // Sync AuthProvider state from the new refresh cookie so
+        // isAuthenticated updates immediately (no full page reload needed)
+        if (auth?.refreshSession) {
+          await auth.refreshSession();
+        }
+
         // Decode state to get returnTo path
         let returnTo = '/';
         if (state) {
@@ -108,7 +115,7 @@ export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }: AuthCal
     }
 
     exchange();
-  }, [apiUrlProp, config, onSuccess, onError]);
+  }, [apiUrlProp, config, auth, onSuccess, onError]);
 
   if (error) {
     return (
