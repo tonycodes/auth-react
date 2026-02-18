@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useContext, useEffect, useRef, useState } from 'react';
-import { AuthConfigContext } from './AuthProvider.js';
+import { AuthConfigContext, AuthContext } from './AuthProvider.js';
 /**
  * Component that handles the OAuth callback.
  * Mount at /auth/callback route in your React router.
@@ -20,6 +20,7 @@ import { AuthConfigContext } from './AuthProvider.js';
  */
 export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }) {
     const config = useContext(AuthConfigContext);
+    const auth = useContext(AuthContext);
     const [error, setError] = useState(null);
     const exchangedRef = useRef(false);
     useEffect(() => {
@@ -71,6 +72,11 @@ export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }) {
                     const data = await res.json();
                     throw new Error(data.error || 'Authentication failed');
                 }
+                // Sync AuthProvider state from the new refresh cookie so
+                // isAuthenticated updates immediately (no full page reload needed)
+                if (auth?.refreshSession) {
+                    await auth.refreshSession();
+                }
                 // Decode state to get returnTo path
                 let returnTo = '/';
                 if (state) {
@@ -96,7 +102,7 @@ export function AuthCallback({ apiUrl: apiUrlProp, onSuccess, onError }) {
             }
         }
         exchange();
-    }, [apiUrlProp, config, onSuccess, onError]);
+    }, [apiUrlProp, config, auth, onSuccess, onError]);
     if (error) {
         return (_jsxs("div", { style: { padding: '2rem', textAlign: 'center' }, children: [_jsx("h2", { children: "Authentication Failed" }), _jsx("p", { children: error }), _jsx("a", { href: "/", children: "Go Home" })] }));
     }

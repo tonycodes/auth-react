@@ -6,4 +6,5 @@ export { OrganizationSwitcher } from './OrganizationSwitcher.js';
 export { AuthCallback } from './AuthCallback.js';
 export { SignInForm } from './SignInForm.js';
 export { AuthConfigError } from './validateConfig.js';
+export { useConnections } from './useConnections.js';
 //# sourceMappingURL=index.js.map

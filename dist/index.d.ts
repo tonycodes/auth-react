@@ -6,5 +6,6 @@ export { OrganizationSwitcher } from './OrganizationSwitcher.js';
 export { AuthCallback } from './AuthCallback.js';
 export { SignInForm } from './SignInForm.js';
 export { AuthConfigError } from './validateConfig.js';
+export { useConnections, type ConnectionStatus, type UseConnectionsOptions, type UseConnectionsResult } from './useConnections.js';
 export type { AuthConfig, ResolvedAuthConfig, AuthUser, AuthOrganization, AuthState } from './types.js';
 //# sourceMappingURL=index.d.ts.map
