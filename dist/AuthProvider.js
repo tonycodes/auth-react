@@ -294,6 +294,7 @@ export function AuthProvider({ config, children }) {
         isPlatformAdmin: isSuperAdmin,
         accessToken,
         getAccessToken,
+        refreshSession: refreshToken,
         login,
         logout,
         switchOrganization,
