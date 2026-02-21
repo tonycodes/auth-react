@@ -11,6 +11,7 @@ export interface ProviderInfo {
 
 export interface UseProvidersResult {
   providers: ProviderInfo[];
+  emailEnabled: boolean;
   isLoading: boolean;
   error: string | null;
   /** Force refetch, bypassing cache */
@@ -21,6 +22,7 @@ export interface UseProvidersResult {
 
 interface CacheEntry {
   providers: ProviderInfo[];
+  emailEnabled: boolean;
   fetchedAt: number;
 }
 
@@ -41,7 +43,12 @@ function isStale(entry: CacheEntry): boolean {
   return Date.now() - entry.fetchedAt > CACHE_TTL;
 }
 
-async function fetchProviders(authUrl: string, clientId: string): Promise<ProviderInfo[]> {
+interface FetchResult {
+  providers: ProviderInfo[];
+  emailEnabled: boolean;
+}
+
+async function fetchProviders(authUrl: string, clientId: string): Promise<FetchResult> {
   const url = new URL(`${authUrl}/providers`);
   url.searchParams.set('client_id', clientId);
 
@@ -51,7 +58,7 @@ async function fetchProviders(authUrl: string, clientId: string): Promise<Provid
   }
 
   const data = await res.json();
-  return data.providers || [];
+  return { providers: data.providers || [], emailEnabled: !!data.emailEnabled };
 }
 
 // ─── Hook ────────────────────────────────────────────────────────────────
@@ -68,6 +75,7 @@ export function useProviders(): UseProvidersResult {
   // Initialize from cache if available
   const cached = getCachedProviders(cacheKey);
   const [providers, setProviders] = useState<ProviderInfo[]>(cached?.providers || []);
+  const [emailEnabled, setEmailEnabled] = useState(cached?.emailEnabled || false);
   const [isLoading, setIsLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
@@ -84,9 +92,10 @@ export function useProviders(): UseProvidersResult {
       if (showLoading) setIsLoading(true);
       try {
         const result = await fetchProviders(config.authUrl, config.clientId);
-        cache.set(cacheKey, { providers: result, fetchedAt: Date.now() });
+        cache.set(cacheKey, { providers: result.providers, emailEnabled: result.emailEnabled, fetchedAt: Date.now() });
         if (mounted) {
-          setProviders(result);
+          setProviders(result.providers);
+          setEmailEnabled(result.emailEnabled);
           setError(null);
         }
       } catch (err) {
@@ -108,11 +117,13 @@ export function useProviders(): UseProvidersResult {
     } else if (isStale(entry)) {
       // Stale cache — show cached data, refresh in background
       setProviders(entry.providers);
+      setEmailEnabled(entry.emailEnabled);
       setIsLoading(false);
       doFetch(false);
     } else {
       // Fresh cache — use it directly
       setProviders(entry.providers);
+      setEmailEnabled(entry.emailEnabled);
       setIsLoading(false);
     }
 
@@ -132,5 +143,5 @@ export function useProviders(): UseProvidersResult {
     };
   }, [config.authUrl, config.clientId, cacheKey, refreshCounter]);
 
-  return { providers, isLoading, error, refresh };
+  return { providers, emailEnabled, isLoading, error, refresh };
 }

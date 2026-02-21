@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { useAuthConfig } from './useAuth.js';
 import { useProviders } from './useProviders.js';
@@ -113,11 +113,17 @@ function BitbucketIcon() {
 }
 export function SignInForm({ providers: propProviders, autoFetch = true, theme = 'auto', style, className, }) {
     const config = useAuthConfig();
-    const { providers: fetchedProviders, isLoading: providersLoading } = useProviders();
+    const { providers: fetchedProviders, emailEnabled: fetchedEmailEnabled, isLoading: providersLoading } = useProviders();
     const [activeTab, setActiveTab] = useState('signin');
     const [errorMessage, setErrorMessage] = useState(null);
     const [returnTo, setReturnTo] = useState('/');
     const [isDark, setIsDark] = useState(false);
+    // Magic link state
+    const [email, setEmail] = useState('');
+    const [emailError, setEmailError] = useState(null);
+    const [emailSending, setEmailSending] = useState(false);
+    const [emailSent, setEmailSent] = useState(false);
+    const [emailApiError, setEmailApiError] = useState(null);
     // Resolve theme
     useEffect(() => {
         if (theme === 'dark') {
@@ -170,9 +176,52 @@ export function SignInForm({ providers: propProviders, autoFetch = true, theme =
         });
         window.location.href = `${config.authUrl}/authorize?${params}`;
     }
+    // Only show email input when autoFetch is used and server reports email as enabled
+    const showEmail = !propProviders && autoFetch && fetchedEmailEnabled;
     function switchTab(tab) {
         setActiveTab(tab);
         setErrorMessage(null);
+        setEmailError(null);
+        setEmailApiError(null);
+        setEmailSent(false);
+    }
+    async function handleMagicLink(e) {
+        e.preventDefault();
+        setEmailError(null);
+        setEmailApiError(null);
+        const trimmed = email.trim();
+        if (!trimmed) {
+            setEmailError('Email is required');
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+            setEmailError('Please enter a valid email address');
+            return;
+        }
+        setEmailSending(true);
+        try {
+            const res = await fetch(`${config.authUrl}/api/auth/magic-link`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: trimmed,
+                    mode: activeTab,
+                    client_id: config.clientId,
+                    redirect_uri: `${config.appUrl}/auth/callback`,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Failed to send magic link');
+            }
+            setEmailSent(true);
+        }
+        catch (err) {
+            setEmailApiError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+        }
+        finally {
+            setEmailSending(false);
+        }
     }
     const providerName = (id) => {
         const names = {
@@ -199,6 +248,23 @@ export function SignInForm({ providers: propProviders, autoFetch = true, theme =
         apple: _jsx(AppleIcon, {}),
         bitbucket: _jsx(BitbucketIcon, {}),
     };
-    return (_jsxs("div", { className: className, style: style, children: [_jsx("style", { children: `@keyframes tonycodes-auth-spin { to { transform: rotate(360deg) } }` }), _jsxs("div", { style: styles.tabContainer(isDark), children: [_jsx("button", { type: "button", style: styles.tab(activeTab === 'signin', isDark), onClick: () => switchTab('signin'), children: "Sign In" }), _jsx("button", { type: "button", style: styles.tab(activeTab === 'signup', isDark), onClick: () => switchTab('signup'), children: "Sign Up" })] }), errorMessage && (_jsx("div", { style: styles.error(isDark), children: errorMessage })), autoFetch && !propProviders && providersLoading ? (_jsx("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 0' }, children: _jsx("div", { style: styles.spinner(isDark) }) })) : (_jsx("div", { style: styles.buttonGroup, children: enabledProviders.map((id) => (_jsxs("button", { type: "button", style: providerStyles[id] || styles.buttonBase, onClick: () => handleOAuth(id), onMouseEnter: (e) => { e.currentTarget.style.opacity = '0.9'; }, onMouseLeave: (e) => { e.currentTarget.style.opacity = '1'; }, children: [providerIcons[id], _jsx("span", { children: buttonText(id) })] }, id))) })), _jsx("p", { style: styles.terms(isDark), children: "By continuing, you agree to our terms of service." })] }));
+    return (_jsxs("div", { className: className, style: style, children: [_jsx("style", { children: `@keyframes tonycodes-auth-spin { to { transform: rotate(360deg) } }` }), _jsxs("div", { style: styles.tabContainer(isDark), children: [_jsx("button", { type: "button", style: styles.tab(activeTab === 'signin', isDark), onClick: () => switchTab('signin'), children: "Sign In" }), _jsx("button", { type: "button", style: styles.tab(activeTab === 'signup', isDark), onClick: () => switchTab('signup'), children: "Sign Up" })] }), errorMessage && (_jsx("div", { style: styles.error(isDark), children: errorMessage })), autoFetch && !propProviders && providersLoading ? (_jsx("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 0' }, children: _jsx("div", { style: styles.spinner(isDark) }) })) : (_jsx("div", { style: styles.buttonGroup, children: enabledProviders.map((id) => (_jsxs("button", { type: "button", style: providerStyles[id] || styles.buttonBase, onClick: () => handleOAuth(id), onMouseEnter: (e) => { e.currentTarget.style.opacity = '0.9'; }, onMouseLeave: (e) => { e.currentTarget.style.opacity = '1'; }, children: [providerIcons[id], _jsx("span", { children: buttonText(id) })] }, id))) })), showEmail && !providersLoading && (_jsxs(_Fragment, { children: [enabledProviders.length > 0 && (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }, children: [_jsx("div", { style: { flex: 1, height: '1px', backgroundColor: isDark ? '#374151' : '#e4e4e7' } }), _jsx("span", { style: { fontSize: '12px', color: isDark ? '#6b7280' : '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }, children: "or" }), _jsx("div", { style: { flex: 1, height: '1px', backgroundColor: isDark ? '#374151' : '#e4e4e7' } })] })), emailSent ? (_jsxs("div", { style: { textAlign: 'center', padding: '12px 0' }, children: [_jsx("p", { style: { fontSize: '14px', fontWeight: 500, color: isDark ? '#f9fafb' : '#18181b' }, children: "Check your email" }), _jsxs("p", { style: { fontSize: '13px', color: isDark ? '#9ca3af' : '#71717a', marginTop: '4px' }, children: ["We sent a ", activeTab === 'signin' ? 'sign-in' : 'sign-up', " link to ", _jsx("strong", { style: { color: isDark ? '#e5e7eb' : '#3f3f46' }, children: email.trim() })] }), _jsx("button", { type: "button", onClick: () => { setEmailSent(false); setEmail(''); }, style: { fontSize: '13px', color: isDark ? '#93c5fd' : '#2563eb', background: 'none', border: 'none', cursor: 'pointer', marginTop: '8px', fontFamily: 'inherit' }, children: "Use a different email" })] })) : (_jsxs("form", { onSubmit: handleMagicLink, style: { display: 'flex', flexDirection: 'column', gap: '8px' }, children: [_jsx("input", { type: "email", name: "email", autoComplete: "email", value: email, onChange: (e) => { setEmail(e.target.value); setEmailError(null); setEmailApiError(null); }, placeholder: "Email address", style: {
+                                    width: '100%',
+                                    padding: '12px 16px',
+                                    borderRadius: '12px',
+                                    border: `1px solid ${emailError ? (isDark ? '#7f1d1d' : '#fca5a5') : (isDark ? '#374151' : '#d4d4d8')}`,
+                                    backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                                    color: isDark ? '#f9fafb' : '#18181b',
+                                    fontSize: '15px',
+                                    outline: 'none',
+                                    fontFamily: 'inherit',
+                                    boxSizing: 'border-box',
+                                } }), emailError && (_jsx("p", { style: { fontSize: '12px', color: isDark ? '#fca5a5' : '#dc2626', margin: 0 }, children: emailError })), _jsx("button", { type: "submit", disabled: emailSending, style: {
+                                    ...styles.buttonBase,
+                                    backgroundColor: '#2563eb',
+                                    color: '#ffffff',
+                                    opacity: emailSending ? 0.6 : 1,
+                                    cursor: emailSending ? 'not-allowed' : 'pointer',
+                                }, children: _jsx("span", { children: emailSending ? 'Sending...' : (activeTab === 'signin' ? 'Send sign-in link' : 'Send sign-up link') }) }), emailApiError && (_jsx("p", { style: { fontSize: '12px', color: isDark ? '#fca5a5' : '#dc2626', margin: 0 }, children: emailApiError }))] }))] })), _jsx("p", { style: styles.terms(isDark), children: "By continuing, you agree to our terms of service." })] }));
 }
 //# sourceMappingURL=SignInForm.js.map
