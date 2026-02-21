@@ -22,7 +22,7 @@ async function fetchProviders(authUrl, clientId) {
         throw new Error('Failed to fetch providers');
     }
     const data = await res.json();
-    return data.providers || [];
+    return { providers: data.providers || [], emailEnabled: !!data.emailEnabled };
 }
 // ─── Hook ────────────────────────────────────────────────────────────────
 /**
@@ -36,6 +36,7 @@ export function useProviders() {
     // Initialize from cache if available
     const cached = getCachedProviders(cacheKey);
     const [providers, setProviders] = useState(cached?.providers || []);
+    const [emailEnabled, setEmailEnabled] = useState(cached?.emailEnabled || false);
     const [isLoading, setIsLoading] = useState(!cached);
     const [error, setError] = useState(null);
     const [refreshCounter, setRefreshCounter] = useState(0);
@@ -50,9 +51,10 @@ export function useProviders() {
                 setIsLoading(true);
             try {
                 const result = await fetchProviders(config.authUrl, config.clientId);
-                cache.set(cacheKey, { providers: result, fetchedAt: Date.now() });
+                cache.set(cacheKey, { providers: result.providers, emailEnabled: result.emailEnabled, fetchedAt: Date.now() });
                 if (mounted) {
-                    setProviders(result);
+                    setProviders(result.providers);
+                    setEmailEnabled(result.emailEnabled);
                     setError(null);
                 }
             }
@@ -77,12 +79,14 @@ export function useProviders() {
         else if (isStale(entry)) {
             // Stale cache — show cached data, refresh in background
             setProviders(entry.providers);
+            setEmailEnabled(entry.emailEnabled);
             setIsLoading(false);
             doFetch(false);
         }
         else {
             // Fresh cache — use it directly
             setProviders(entry.providers);
+            setEmailEnabled(entry.emailEnabled);
             setIsLoading(false);
         }
         // Refetch on window focus (admin changes take effect when tab refocused)
@@ -98,6 +102,6 @@ export function useProviders() {
             window.removeEventListener('focus', handleFocus);
         };
     }, [config.authUrl, config.clientId, cacheKey, refreshCounter]);
-    return { providers, isLoading, error, refresh };
+    return { providers, emailEnabled, isLoading, error, refresh };
 }
 //# sourceMappingURL=useProviders.js.map
