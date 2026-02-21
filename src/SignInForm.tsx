@@ -173,11 +173,18 @@ export function SignInForm({
   className,
 }: SignInFormProps) {
   const config = useAuthConfig();
-  const { providers: fetchedProviders, isLoading: providersLoading } = useProviders();
+  const { providers: fetchedProviders, emailEnabled: fetchedEmailEnabled, isLoading: providersLoading } = useProviders();
   const [activeTab, setActiveTab] = useState<Mode>('signin');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [returnTo, setReturnTo] = useState('/');
   const [isDark, setIsDark] = useState(false);
+
+  // Magic link state
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailApiError, setEmailApiError] = useState<string | null>(null);
 
   // Resolve theme
   useEffect(() => {
@@ -235,9 +242,56 @@ export function SignInForm({
     window.location.href = `${config.authUrl}/authorize?${params}`;
   }
 
+  // Only show email input when autoFetch is used and server reports email as enabled
+  const showEmail = !propProviders && autoFetch && fetchedEmailEnabled;
+
   function switchTab(tab: Mode) {
     setActiveTab(tab);
     setErrorMessage(null);
+    setEmailError(null);
+    setEmailApiError(null);
+    setEmailSent(false);
+  }
+
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    setEmailError(null);
+    setEmailApiError(null);
+
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setEmailError('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+
+    setEmailSending(true);
+    try {
+      const res = await fetch(`${config.authUrl}/api/auth/magic-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: trimmed,
+          mode: activeTab,
+          client_id: config.clientId,
+          redirect_uri: `${config.appUrl}/auth/callback`,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to send magic link');
+      }
+
+      setEmailSent(true);
+    } catch (err) {
+      setEmailApiError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setEmailSending(false);
+    }
   }
 
   const providerName = (id: string) => {
@@ -312,6 +366,77 @@ export function SignInForm({
             </button>
           ))}
         </div>
+      )}
+
+      {/* Magic link email */}
+      {showEmail && !providersLoading && (
+        <>
+          {enabledProviders.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
+              <div style={{ flex: 1, height: '1px', backgroundColor: isDark ? '#374151' : '#e4e4e7' }} />
+              <span style={{ fontSize: '12px', color: isDark ? '#6b7280' : '#a1a1aa', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>or</span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: isDark ? '#374151' : '#e4e4e7' }} />
+            </div>
+          )}
+
+          {emailSent ? (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <p style={{ fontSize: '14px', fontWeight: 500, color: isDark ? '#f9fafb' : '#18181b' }}>Check your email</p>
+              <p style={{ fontSize: '13px', color: isDark ? '#9ca3af' : '#71717a', marginTop: '4px' }}>
+                We sent a {activeTab === 'signin' ? 'sign-in' : 'sign-up'} link to <strong style={{ color: isDark ? '#e5e7eb' : '#3f3f46' }}>{email.trim()}</strong>
+              </p>
+              <button
+                type="button"
+                onClick={() => { setEmailSent(false); setEmail(''); }}
+                style={{ fontSize: '13px', color: isDark ? '#93c5fd' : '#2563eb', background: 'none', border: 'none', cursor: 'pointer', marginTop: '8px', fontFamily: 'inherit' }}
+              >
+                Use a different email
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleMagicLink} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <input
+                type="email"
+                name="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setEmailError(null); setEmailApiError(null); }}
+                placeholder="Email address"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  border: `1px solid ${emailError ? (isDark ? '#7f1d1d' : '#fca5a5') : (isDark ? '#374151' : '#d4d4d8')}`,
+                  backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                  color: isDark ? '#f9fafb' : '#18181b',
+                  fontSize: '15px',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box' as const,
+                }}
+              />
+              {emailError && (
+                <p style={{ fontSize: '12px', color: isDark ? '#fca5a5' : '#dc2626', margin: 0 }}>{emailError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={emailSending}
+                style={{
+                  ...styles.buttonBase,
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  opacity: emailSending ? 0.6 : 1,
+                  cursor: emailSending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <span>{emailSending ? 'Sending...' : (activeTab === 'signin' ? 'Send sign-in link' : 'Send sign-up link')}</span>
+              </button>
+              {emailApiError && (
+                <p style={{ fontSize: '12px', color: isDark ? '#fca5a5' : '#dc2626', margin: 0 }}>{emailApiError}</p>
+              )}
+            </form>
+          )}
+        </>
       )}
 
       {/* Terms */}
